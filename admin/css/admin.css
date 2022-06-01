@@ -1,0 +1,69 @@
+/**
+ * All of the CSS for your admin-specific functionality should be
+ * included in this file.
+ */
+
+ #source-migrator .alert {
+  position: relative;
+  padding: .75rem 1.25rem;
+  margin-bottom: 1rem;
+  border: 1px solid transparent;
+  border-radius: .25rem;
+}
+
+#source-migrator .alert-success {
+  color: #155724;
+  background-color: #d4edda;
+  border-color: #c3e6cb;
+}
+
+#source-migrator .alert-danger {
+  color: #721c24;
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+}
+
+#source-migrator .alert-warning {
+  color: #856404;
+  background-color: #fff3cd;
+  border-color: #ffeeba;
+}
+
+#source-migrator .alert-info {
+  color: #0c5460;
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+}
+
+#source-migrator .text-success {
+  color: green;
+}
+
+#source-migrator .nav-tab-wrapper h2 {
+  margin: 0;
+}
+
+#source-migrator #progress {
+  width: 100%;
+  height: 2rem;
+  overflow: hidden;
+  background: #e5e5e5;
+  border-radius: 6px;
+}
+
+#source-migrator .bar {
+	position: relative;
+  float: left;
+  min-width: 1%;
+  height: 100%;
+  background: cornflowerblue;
+}
+
+#source-migrator .percent {
+	position:absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+  margin:0;
+  color: white;
+}
