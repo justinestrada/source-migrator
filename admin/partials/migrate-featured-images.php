@@ -66,6 +66,13 @@ $import_log_url = get_site_url() . '/wp-content/uploads/source-migrator-logs/imp
           <input type="radio" id="matching_type" name="matching_type" value="permalink" required/> Permalink
         </td>
       </tr>
+      <tr>
+        <th><label for="import_content_images">Import Content Images Too</label></th>
+        <td>
+          <input type="checkbox" id="import_content_images" name="import_content_images" value="1"/>
+        </td>
+      </tr>
+      
     </tbody>
   </table>
   <!-- name="action" value="run_migrate_press"  -->

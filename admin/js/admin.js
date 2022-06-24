@@ -240,6 +240,7 @@ const Importer = {
 		const auth_token = $form.find('[name="auth_token"]').val();
     const post_type = $form.find('[name="post_type"]').val();
     const matching_type = $form.find('[name="matching_type"]:checked').val();
+    const import_content_images = $form.find('[name="import_content_images"]:checked').val();
 
     const mapSeries = async ($form, iterable, action) => {
       let totalImported = 0
@@ -256,7 +257,7 @@ const Importer = {
         featureImageSlug = await Importer.importFeatureImagesSlugs(post_type)
         featureImageSlug = JSON.parse(featureImageSlug)
       }
-      let importFeatureImagesRes = await Importer.importFeatureImages(auth_token, site_url, post_type, matching_type, featureImageSlug.data)
+      let importFeatureImagesRes = await Importer.importFeatureImages(auth_token, site_url, post_type, matching_type, import_content_images, featureImageSlug.data)
       importFeatureImagesRes = JSON.parse(importFeatureImagesRes)
       if (!importFeatureImagesRes || importFeatureImagesRes.error){
         Importer.onDoneImporting($form, false, importFeatureImagesRes.error)
@@ -298,7 +299,7 @@ const Importer = {
 			});
 		});
 	},
-  importFeatureImages: function(auth_token, site_url, post_type, matching_type, slugs = null) {
+  importFeatureImages: function(auth_token, site_url, post_type, matching_type,import_content_images, slugs = null) {
 		return new Promise( (resolve, reject) => {
 			$.ajax({
 				url: SourceMigrator.admin_ajax,
@@ -308,6 +309,7 @@ const Importer = {
 					'post_type': post_type,
           'matching_type': matching_type,
           'slugs': slugs,
+          'import_content_images': import_content_images,
           'action': 'source_migrate'
 				},
 				type: 'POST',

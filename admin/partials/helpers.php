@@ -366,8 +366,10 @@ function sm_create_attachment_by_file_url($file_url, $post_id) {
     require_once(ABSPATH . 'wp-admin/includes/image.php');
   }
   // TODO: fix - HMMM? this is suppose to generate the wp size, but inside the media library the images are just showing a document icon
-  $attach_data = wp_generate_attachment_metadata($attach_id, $file_url);
-  $res1 = wp_update_attachment_metadata($attach_id, $attach_data);
+  $imagenew = get_post( $attach_id );
+  $fullsizepath = get_attached_file( $imagenew->ID );
+  $attach_data = wp_generate_attachment_metadata($attach_id, $fullsizepath);
+  wp_update_attachment_metadata($attach_id, $attach_data);
   return $attach_id;
 }
 

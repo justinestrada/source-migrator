@@ -109,9 +109,20 @@ function save_imported_featued_images() {
   }
 
   $imageurl = $_POST['image_url'];
+  $postId = $_POST['post_id'];
+  $attach_id = save_file_in_wordpress($imageurl, $postId);
+  set_post_thumbnail($postId, $attach_id );
+  if (isset($_POST['import_content_images']) && $_POST['import_content_images'] == 1) {
+    sm_import_new_post_content_images($postId, get_post($postId)->post_content);
+  }
+  $response['success'] = true;
+  exit(json_encode($response));
+}
+
+function save_file_in_wordpress($imageurl, $postId) {
   $imagetype = end(explode('/', getimagesize($imageurl)['mime']));
   $uniq_name = date('dmY').''.(int) microtime(true); 
-  $filename = $_POST['post_id'].$uniq_name.'.'.$imagetype;
+  $filename = $postId.$uniq_name.'.'.$imagetype;
   
   $uploaddir = wp_upload_dir();
   $uploadfile = $uploaddir['path'] . '/' . $filename;
@@ -133,9 +144,7 @@ function save_imported_featued_images() {
   $fullsizepath = get_attached_file( $imagenew->ID );
   $attach_data = wp_generate_attachment_metadata( $attach_id, $fullsizepath );
   wp_update_attachment_metadata( $attach_id, $attach_data );
-  set_post_thumbnail($_POST['post_id'], $attach_id );
-  $response['success'] = true;
-  exit(json_encode($response));
+  return $attach_id;
 }
 add_action('wp_ajax_get_products_sku', 'get_products_sku');
 function get_products_sku() {
@@ -164,9 +173,10 @@ function save_imported_product_reviews() {
   if (!isset($_POST['sku']) || !isset($_POST['reviews'])) {
     exit( json_encode($response) );
   }
+  $productId = wc_get_product_id_by_sku($_POST['sku']);
   foreach ($_POST['reviews'] as $review) {
     $review['user_id'] = get_user_by( 'email', $review['comment_author_email'] )->ID;
-    $review['comment_post_ID'] = wc_get_product_id_by_sku($_POST['sku']);
+    $review['comment_post_ID'] = $productId;
     $comment_id = wp_insert_comment($review);
     update_comment_meta( $comment_id, 'rating', $review['rating'] );
   }
