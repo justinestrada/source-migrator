@@ -31,6 +31,12 @@ $site_url = get_site_url();
         <h2>Misc</h2>
       </a>
     <?php } ?>
+    <a href="<?php echo $site_url; ?>/wp-admin/tools.php?page=source-migrator&amp;tab=migrate-featured-images" class="nav-tab <?php echo ($active_tab === 'migrate') ? 'nav-tab-active' : ''; ?>">
+        <h2>Migrate Feature Images</h2>
+      </a>
+      <a href="<?php echo $site_url; ?>/wp-admin/tools.php?page=source-migrator&amp;tab=migrate-product-reviews" class="nav-tab <?php echo ($active_tab === 'migrate-product-reviews') ? 'nav-tab-active' : ''; ?>">
+        <h2>Migrate Product Reviews</h2>
+      </a>
   </div>
   <?php if ($active_tab === 'connection') {
     require_once( plugin_dir_path( __FILE__ ) . '/connection.php' );
@@ -38,5 +44,9 @@ $site_url = get_site_url();
     require_once( plugin_dir_path( __FILE__ ) . '/migrate.php' );
   } else if ($active_tab === 'misc' && $db_settings) {
     require_once( plugin_dir_path( __FILE__ ) . '/misc.php' );
+  } else if ($active_tab === 'migrate-featured-images') {
+    require_once( plugin_dir_path( __FILE__ ) . '/migrate-featured-images.php' );
+  } else if($active_tab === 'migrate-product-reviews') {
+    require_once( plugin_dir_path( __FILE__ ) . '/migrate-product-reviews.php' );
   } ?>
 </div>
