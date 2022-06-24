@@ -103,11 +103,9 @@ function get_post_slugs() {
 add_action('wp_ajax_save_imported_featued_images', 'save_imported_featued_images');
 function save_imported_featued_images() {
   $response = array('success' => false);
-
   if (!isset($_POST['image_url']) || !isset($_POST['post_id'])) {
     exit( json_encode($response) );
   }
-
   $imageurl = $_POST['image_url'];
   $postId = $_POST['post_id'];
   $attach_id = save_file_in_wordpress($imageurl, $postId);

@@ -594,7 +594,10 @@ function sm_import_new_post_content_images($new_post_id, $new_post_content_html)
   }
   $old_images_src = array();
   foreach ($images_tag as $tag) {
-    $old_images_src[] = $tag->getAttribute('src');
+    $old_images_src_src = $tag->getAttribute('src');
+    if (strpos($old_images_src_src, 'https://dev-zopto.pantheonsite.io/') === false) {
+      $old_images_src[] = $old_images_src_src;
+    }
   }
   if (empty($old_images_src)) {
     return false;

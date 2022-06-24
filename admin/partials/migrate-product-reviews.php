@@ -34,7 +34,7 @@ $import_log_url = get_site_url() . '/wp-content/uploads/source-migrator-logs/imp
 <form id="import-product-reviews-form" method="post" action="<?php echo get_site_url(); ?>/wp-admin/tools.php?page=source-migrator&tab=migrate-product-reviews" style="margin-bottom: 1rem;">
 <div id="import-alert" class="alert" role="alert" style="display: none;"></div>  
 <h3>Import</h3>
-  <p>Import featured images of dofferent post_type(s) from remote/external website.</p>
+  <p>Import featured images of different post_type(s) from remote/external website.</p>
   <table class="form-table">
     <tbody>
       <tr>
