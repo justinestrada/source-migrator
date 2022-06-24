@@ -82,16 +82,19 @@ if (! empty($db_settings)) { ?>
     <button type="submit" name="action" value="test_db_connection" class="button button-primary" >Test Connection</button>
   </form>
   <?php
+  global $wpdb;
   if (isset($_POST['action']) && $_POST['action'] === 'test_db_connection') { ?>
     <h3>Remote database connection</h3>
-    <?php try {
-      $remote_db = new wpdb($db_settings->user, $db_settings->pass, $db_settings->name, $db_settings->host);
-      $remote_site_url = $remote_db->get_var("SELECT option_value FROM " . $db_settings->table_prefix . "options WHERE option_name = 'siteurl'");
-      if ($remote_site_url) { ?>
-        <p>Connected to: <?php echo $remote_site_url; ?></p>
-      <?php }
-    } catch (Exception $e) {
-      echo 'Caught exception: ',  $e->getMessage(), "\n";
+    <?php
+    echo 'test';
+    $remote_db = new wpdb($db_settings->user, $db_settings->pass, $db_settings->name, $db_settings->host);
+    echo 'test2';
+    $remote_site_url = $remote_db->get_var("SELECT option_value FROM " . $db_settings->table_prefix . "options WHERE option_name = 'siteurl'");
+    if ($wpdb->last_error !== '') {
+      $wpdb->print_error();
     }
+    if ($remote_site_url) { ?>
+      <p>Connected to: <?php echo $remote_site_url; ?></p>
+    <?php }
   }
 } ?>

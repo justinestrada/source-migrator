@@ -9,14 +9,14 @@
  * that starts the plugin.
  *
  * @link              https://sourcestrike.com
- * @since             0.1.1
+ * @since             0.2
  * @package           Source_Migrator
  *
  * @wordpress-plugin
  * Plugin Name:       Source Migrator
  * Plugin URI:        https://sourcestrike.com
  * Description:       Migrate custom WordPress data from site to site. This does not work out of the box, you'll need to customize the mirgation code per website.
- * Version:           0.1.1
+ * Version:           0.2
  * Author:            SourceStrike
  * Author URI:        https://sourcestrike.com
  * License:           GPL-2.0+
@@ -35,7 +35,7 @@ if ( ! defined( 'WPINC' ) ) {
  * Start at version 0.1.0 and use SemVer - https://semver.org
  * Rename this for your plugin and update it as you release new versions.
  */
-define( 'VERSION', '0.1.1' );
+define( 'VERSION', '0.2' );
 
 /**
  * The code that runs during plugin activation.
