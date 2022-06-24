@@ -1,4 +1,5 @@
 <?php
+include_once( ABSPATH . 'wp-admin/includes/image.php' );
 
 add_action('wp_ajax_source_migrator_sm_get_sm_import_post_ids', 'source_migrator_sm_get_sm_import_post_ids');
 add_action('wp_ajax_nopriv_source_migrator_sm_get_sm_import_post_ids', 'source_migrator_sm_get_sm_import_post_ids');
@@ -43,4 +44,158 @@ function source_migrator_sm_import_post() {
     $response['success'] = false;
   }
   exit( json_encode($response) );
+}
+
+add_action('wp_ajax_source_migrate', 'source_migrate');
+function source_migrate() {
+  $response = array('success' => false);
+  if (!isset($_POST['action']) || $_POST['action'] !== 'source_migrate'  ) {
+    exit( json_encode($response) );
+  }
+
+  if (!isset($_POST['auth_token']) || !isset($_POST['site_url']) || !isset($_POST['post_type'])) {
+    exit( json_encode($response) );
+  }
+
+  $curl = curl_init();
+  curl_setopt_array($curl, [
+    CURLOPT_URL => $_POST['site_url'].'/wp-json/source-migrator/export',
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_ENCODING => '',
+    CURLOPT_MAXREDIRS => 10,
+    CURLOPT_TIMEOUT => 0,
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+    CURLOPT_CUSTOMREQUEST => 'POST',
+    CURLOPT_POSTFIELDS => http_build_query([
+      'post_type'=> $_POST['post_type'],
+      'auth_token'=> $_POST['auth_token'],
+      'matching_type'=> $_POST['matching_type'],
+      'slugs'=> $_POST['slugs']
+    ])
+  ]);
+
+  $response = curl_exec($curl);
+  curl_close($curl);
+  exit($response);
+}
+
+add_action('wp_ajax_get_post_slugs', 'get_post_slugs');
+function get_post_slugs() {
+  $response = array('success' => false);
+  if(!isset($_POST['post_type'])) {
+    exit(json_encode($response));
+  }
+  $posts = get_posts([
+    'numberposts' => -1,
+    'post_type'   => $_POST['post_type']
+  ]);
+  $response['data'] = [];
+  if ( $posts ) {
+    foreach ( $posts as $post ){
+      $response['data'][] =  $post->post_name;
+    }
+  }
+  $response['success'] = true;
+  exit(json_encode($response));
+}
+
+add_action('wp_ajax_save_imported_featued_images', 'save_imported_featued_images');
+function save_imported_featued_images() {
+  $response = array('success' => false);
+
+  if (!isset($_POST['image_url']) || !isset($_POST['post_id'])) {
+    exit( json_encode($response) );
+  }
+
+  $imageurl = $_POST['image_url'];
+  $imagetype = end(explode('/', getimagesize($imageurl)['mime']));
+  $uniq_name = date('dmY').''.(int) microtime(true); 
+  $filename = $_POST['post_id'].$uniq_name.'.'.$imagetype;
+  
+  $uploaddir = wp_upload_dir();
+  $uploadfile = $uploaddir['path'] . '/' . $filename;
+  $contents = file_get_contents($imageurl);
+  $savefile = fopen($uploadfile, 'w');
+  fwrite($savefile, $contents);
+  fclose($savefile);
+  
+  $wp_filetype = wp_check_filetype(basename($filename), null );
+  $attachment = array(
+    'post_mime_type' => $wp_filetype['type'],
+    'post_title' => $filename,
+    'post_content' => '',
+    'post_status' => 'inherit'
+  );
+  
+  $attach_id = wp_insert_attachment( $attachment, $uploadfile );
+  $imagenew = get_post( $attach_id );
+  $fullsizepath = get_attached_file( $imagenew->ID );
+  $attach_data = wp_generate_attachment_metadata( $attach_id, $fullsizepath );
+  wp_update_attachment_metadata( $attach_id, $attach_data );
+  set_post_thumbnail($_POST['post_id'], $attach_id );
+  $response['success'] = true;
+  exit(json_encode($response));
+}
+add_action('wp_ajax_get_products_sku', 'get_products_sku');
+function get_products_sku() {
+  $response = array('success' => false, 'data'=>[]);
+  $args = array( 'post_type' => 'product', 'posts_per_page' => -1 );
+  query_posts( $args );
+  if(!have_posts()){
+    $response['success'] = true;
+    exit($response);
+  }
+  while (have_posts()) {
+    the_post();
+    $product = wc_get_product(get_the_ID());
+    $sku = $product->get_sku();
+    if ($sku) {
+      $response['data'][] = $product->get_sku();
+    }
+  }
+  $response['success'] = true;
+  exit(json_encode($response));
+}
+
+add_action('wp_ajax_save_imported_product_reviews', 'save_imported_product_reviews');
+function save_imported_product_reviews() {
+  $response = array('success' => false, 'data'=>[]);
+  if (!isset($_POST['sku']) || !isset($_POST['reviews'])) {
+    exit( json_encode($response) );
+  }
+  foreach ($_POST['reviews'] as $review) {
+    $review['user_id'] = get_user_by( 'email', $review['comment_author_email'] )->ID;
+    $review['comment_post_ID'] = wc_get_product_id_by_sku($_POST['sku']);
+    $comment_id = wp_insert_comment($review);
+    update_comment_meta( $comment_id, 'rating', $review['rating'] );
+  }
+  $response['success'] = true;
+  exit(json_encode($response));
+}
+
+add_action('wp_ajax_source_migrate_reviews', 'source_migrate_reviews');
+function source_migrate_reviews() {
+  $response = array('success' => false);
+
+  if (!isset($_POST['auth_token']) || !isset($_POST['site_url'])) {
+    exit( json_encode($response) );
+  }
+
+  $curl = curl_init();
+  curl_setopt_array($curl, [
+    CURLOPT_URL => $_POST['site_url'].'/wp-json/source-migrator/export-reviews',
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_ENCODING => '',
+    CURLOPT_MAXREDIRS => 10,
+    CURLOPT_TIMEOUT => 0,
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+    CURLOPT_CUSTOMREQUEST => 'POST',
+    CURLOPT_POSTFIELDS => http_build_query($_POST)
+  ]);
+
+  $response = curl_exec($curl);
+  curl_close($curl);
+  exit($response);
 }

@@ -126,6 +126,8 @@ const Importer = {
 	match_taxonomies: false,
 	onLoad: function() {
 		this.onSubmit($('#import-form'));
+    this.onMigrateFeatureImageSubmit($('#import-featured-image-form'));
+    this.onMigrateProductReviewsSubmit($('#import-product-reviews-form'))
 	},
 	onSubmit: function($form) {
 		$form.on('submit', function(e) {
@@ -171,7 +173,7 @@ const Importer = {
 							import_count.failed++;
 						}
 						import_count.total++;
-						Importer.updateProgressBar(import_count.total, import_total);
+						Importer.updateProgressBar($form, import_count.total, import_total);
 
 						if (import_count.total >= import_total) {
 							Importer.onDoneImporting($form, true, res.msg);
@@ -188,7 +190,7 @@ const Importer = {
 			Importer.onDoneImporting($form, false, err);
 		});
 	},
-	onGetImportPostIDs: function() {
+  onGetImportPostIDs: function() {
 		return new Promise( (resolve, reject) => {
 			$.ajax({
 				url: SourceMigrator.admin_ajax,
@@ -226,18 +228,228 @@ const Importer = {
 			});
 		});
 	},
-	updateProgressBar: function(count, import_total) {
+  onMigrateFeatureImageSubmit: function($form) {
+		$form.on('submit', function(e) {
+			e.preventDefault();
+      $form.find('[type="submit"]').prop('disabled', true);
+			Importer.onMigrateFeatureImageImport($form);
+		});
+  },
+  onMigrateFeatureImageImport: async function($form) {
+    const site_url = $form.find('[name="site_url"]').val();
+		const auth_token = $form.find('[name="auth_token"]').val();
+    const post_type = $form.find('[name="post_type"]').val();
+    const matching_type = $form.find('[name="matching_type"]:checked').val();
+
+    const mapSeries = async ($form, iterable, action) => {
+      let totalImported = 0
+      for (const data of iterable) {
+        totalImported++
+        await action(data.post_id, data.image_url[0])
+        Importer.updateProgressBar($form,totalImported,iterable.length)
+      }
+    }
+
+    try {
+      let featureImageSlug = {'data':null};
+      if (matching_type == 'permalink') {
+        featureImageSlug = await Importer.importFeatureImagesSlugs(post_type)
+        featureImageSlug = JSON.parse(featureImageSlug)
+      }
+      let importFeatureImagesRes = await Importer.importFeatureImages(auth_token, site_url, post_type, matching_type, featureImageSlug.data)
+      importFeatureImagesRes = JSON.parse(importFeatureImagesRes)
+      if (!importFeatureImagesRes || importFeatureImagesRes.error){
+        Importer.onDoneImporting($form, false, importFeatureImagesRes.error)
+        return
+      }
+
+      if(!importFeatureImagesRes.data || !importFeatureImagesRes.data.length) {
+        Importer.onDoneImporting($form, false, 'Unable to find anything to import')
+        return
+      }
+
+      $('#import-results').show();
+      $('#import-results .total').text(importFeatureImagesRes.data.length);
+      
+      Importer.onDoneImporting($form, true, 'Manage to get images from remote. Now saving in database')
+      await mapSeries($form, importFeatureImagesRes.data,Importer.saveimportedFeatureImages)
+      Importer.onDoneImporting($form, true, 'Feature Images Uploaded')
+      $form.find('[type="submit"]').removeAttr('disabled');
+
+    } catch (error) {
+      console.log(error)
+      Importer.onDoneImporting($form, false, 'Error Please Try Again')
+    } 
+  },
+  importFeatureImagesSlugs: function(postType) {
+    return new Promise( (resolve, reject) => {
+			$.ajax({
+				url: SourceMigrator.admin_ajax,
+        data: {
+          'post_type': postType,
+          'action': 'get_post_slugs'
+        },
+				type: 'POST',
+				config: { headers: {'Content-Type': 'multipart/form-data' }},
+			}).done(function(res) {
+				resolve(res);
+			}).fail(function(err) {
+				reject(err);
+			});
+		});
+	},
+  importFeatureImages: function(auth_token, site_url, post_type, matching_type, slugs = null) {
+		return new Promise( (resolve, reject) => {
+			$.ajax({
+				url: SourceMigrator.admin_ajax,
+				data: {
+          'site_url': site_url,
+					'auth_token': auth_token,
+					'post_type': post_type,
+          'matching_type': matching_type,
+          'slugs': slugs,
+          'action': 'source_migrate'
+				},
+				type: 'POST',
+				config: { headers: {'Content-Type': 'multipart/form-data' }},
+			}).done(function(res) {
+				resolve(res);
+			}).fail(function(err) {
+				reject(err);
+			});
+		});
+	},
+  saveimportedFeatureImages: function(post_id, image_url) {
+		return new Promise( (resolve, reject) => {
+			$.ajax({
+				url: SourceMigrator.admin_ajax,
+				data: {
+					'post_id': post_id,
+          'image_url': image_url,
+          'action' : 'save_imported_featued_images'
+				},
+				type: 'POST',
+				config: { headers: {'Content-Type': 'multipart/form-data' }},
+			}).done(function(res) {
+				resolve(res);
+			}).fail(function(err) {
+				reject(err);
+			});
+		});
+	},
+  onMigrateProductReviewsSubmit: function($form) {
+		$form.on('submit', function(e) {
+			e.preventDefault();
+      $form.find('[type="submit"]').prop('disabled', true);
+			Importer.onMigrateProductReviews($form);
+		});
+  },
+  onMigrateProductReviews: async function($form) {
+    const site_url = $form.find('[name="site_url"]').val();
+		const auth_token = $form.find('[name="auth_token"]').val();
+    const post_type = $form.find('[name="post_type"]').val();
+
+    const mapSeries = async ($form, iterable, action) => {
+      let totalImported = 0
+      for (const data of iterable) {
+        totalImported++
+        await action(data.sku, data.review)
+        Importer.updateProgressBar($form,totalImported,iterable.length)
+      }
+    }
+
+    try {
+      let productsSkus = {'data':null};
+      productsSkus = await Importer.importProductsSkus(post_type)
+      productsSkus = JSON.parse(productsSkus)
+      let importProductsReviews = await Importer.importProductReviews(auth_token, site_url, productsSkus.data)
+      importProductsReviews = JSON.parse(importProductsReviews)
+      if (!importProductsReviews || importProductsReviews.error){
+        Importer.onDoneImporting($form, false, importProductsReviews.error)
+        return
+      }
+
+      if(!importProductsReviews.data || !importProductsReviews.data.length) {
+        Importer.onDoneImporting($form, false, 'Unable to find anything to import')
+        return
+      }
+
+      $('#import-results').show();
+      $('#import-results .total').text(importProductsReviews.data.length);
+      
+      Importer.onDoneImporting($form, true, 'Manage to get product reviews from remote. Now saving in database')
+      console.log(importProductsReviews)
+      await mapSeries($form, importProductsReviews.data,Importer.saveimportedProductReviews)
+      Importer.onDoneImporting($form, true, 'Product Reviews Migrated')
+      $form.find('[type="submit"]').removeAttr('disabled');
+
+    } catch (error) {
+      console.log(error)
+      Importer.onDoneImporting($form, false, 'Error Please Try Again')
+    } 
+  },
+  importProductsSkus: function(postType) {
+    return new Promise( (resolve, reject) => {
+			$.ajax({
+				url: SourceMigrator.admin_ajax,
+        data: {
+          'action': 'get_products_sku'
+        },
+				type: 'POST',
+			}).done(function(res) {
+				resolve(res);
+			}).fail(function(err) {
+				reject(err);
+			});
+		});
+	},
+  importProductReviews: function(auth_token, site_url, skus) {
+		return new Promise( (resolve, reject) => {
+			$.ajax({
+				url: SourceMigrator.admin_ajax,
+				data: {
+          'site_url': site_url,
+					'auth_token': auth_token,
+          'skus': skus,
+          'action': 'source_migrate_reviews'
+				},
+				type: 'POST',
+			}).done(function(res) {
+				resolve(res);
+			}).fail(function(err) {
+				reject(err);
+			});
+		});
+	},
+  saveimportedProductReviews: function(sku, reviews) {
+		return new Promise( (resolve, reject) => {
+			$.ajax({
+				url: SourceMigrator.admin_ajax,
+				data: {
+          'action' : 'save_imported_product_reviews',
+					'sku': sku,
+          'reviews': reviews
+				},
+				type: 'POST',
+			}).done(function(res) {
+				resolve(res);
+			}).fail(function(err) {
+				reject(err);
+			});
+		});
+	},
+	updateProgressBar: function($form, count, import_total) {
 		const percentage = ((count/import_total) * 100).toFixed(2) + '%';
 		// console.log(count, import_total, percentage);
-		$('#progress .bar').css('width', percentage);
-		$('#progress .bar .percent').text(percentage);
-		$('#import-results .count').text(count);
+		$('#progress .bar', $form).css('width', percentage);
+		$('#progress .bar .percent', $form).text(percentage);
+		$('#import-results .count', $form).text(count);
 	},
 	onDoneImporting: function($form, success, msg) {
 		if (success) {
-			$('#import-alert').removeClass('alert-danger').addClass('alert-success').show().text(msg);
+			$('#import-alert', $form).removeClass('alert-danger').addClass('alert-success').show().text(msg);
 		} else {
-			$('#import-alert').removeClass('alert-success').addClass('alert-danger').show().text(msg);
+			$('#import-alert', $form).removeClass('alert-success').addClass('alert-danger').show().text(msg);
 		}
 		$form.find('[type="submit"]').prop('disabled', false);
 	},
