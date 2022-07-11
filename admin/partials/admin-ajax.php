@@ -207,3 +207,80 @@ function source_migrate_reviews() {
   curl_close($curl);
   exit($response);
 }
+
+add_action('wp_ajax_source_migrate_users', 'source_migrate_users');
+function source_migrate_users() {
+  $response = array('success' => false);
+
+  if (!isset($_POST['auth_token']) || !isset($_POST['site_url'])) {
+    exit( json_encode($response) );
+  }
+
+  $curl = curl_init();
+  curl_setopt_array($curl, [
+    CURLOPT_URL => $_POST['site_url'].'/wp-json/source-migrator/export-users',
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_ENCODING => '',
+    CURLOPT_MAXREDIRS => 10,
+    CURLOPT_TIMEOUT => 0,
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+    CURLOPT_CUSTOMREQUEST => 'POST',
+    CURLOPT_POSTFIELDS => http_build_query($_POST)
+  ]);
+
+  $response = curl_exec($curl);
+  curl_close($curl);
+  exit($response);
+}
+
+add_action('wp_ajax_save_imported_users', 'save_imported_users');
+function save_imported_users() {
+  $response = array('success' => false);
+  $data = $_POST['user'];
+  $user = $data['user'];
+
+  $response['data'] = $user['data']['user_email'] .'  ,  '. $user['data']['user_login'];
+  if($user['data']['user_email'] === null && $user['data']['user_login'] === null) {
+    exit(json_encode($response));
+  }
+  $local_user = get_user_by('email', $user['data']['user_email']);
+  
+  if(!$local_user) {
+    $local_user = get_user_by('login', $user['data']['user_login']);
+  }
+  
+  global $wpdb;
+  $current_user_id = get_current_user_id();
+
+  if ($local_user && $local_user->ID === $current_user_id) {
+    exit(json_encode($response));
+  }
+  $local_user_id = $local_user->ID;
+
+  if(!$local_user) {
+    $user_table_name = $wpdb->prefix.'users';
+    unset($user['data']['ID']);
+    $wpdb->insert($user_table_name,$user['data']);
+    $local_user_id = $wpdb->insert_id;
+  }
+
+  $_user = new WP_User($local_user_id);
+  $_user->set_role('subscriber');
+  $_user->remove_role('subscriber');
+  foreach ($user['roles'] as $key => $r) {
+    $_user->add_role($r); 
+  }
+  $response['meta'] = [];
+  foreach ($data['meta'] as $key => $meta) {
+    foreach ($meta as $m) {
+      if($key !== 'wpuw_capabilities'){
+        $m = maybe_unserialize($m);
+        $response['meta'][] = $m;
+        update_metadata('user',$local_user_id, $key, $m);
+      }
+    }
+  }
+  $response['success'] = true;
+  exit(json_encode($response));
+}

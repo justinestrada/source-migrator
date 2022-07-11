@@ -128,6 +128,7 @@ const Importer = {
 		this.onSubmit($('#import-form'));
     this.onMigrateFeatureImageSubmit($('#import-featured-image-form'));
     this.onMigrateProductReviewsSubmit($('#import-product-reviews-form'))
+    this.onMigrateUsersSubmit($('#import-users-form'))
 	},
 	onSubmit: function($form) {
 		$form.on('submit', function(e) {
@@ -431,6 +432,82 @@ const Importer = {
           'action' : 'save_imported_product_reviews',
 					'sku': sku,
           'reviews': reviews
+				},
+				type: 'POST',
+			}).done(function(res) {
+				resolve(res);
+			}).fail(function(err) {
+				reject(err);
+			});
+		});
+	},
+  onMigrateUsersSubmit: function($form) {
+    $form.on('submit', function(e) {
+			e.preventDefault();
+      $form.find('[type="submit"]').prop('disabled', true);
+			Importer.onMigrateProductReviews($form);
+		});
+  },
+  onMigrateProductReviews: async function($form) {
+    const site_url = $form.find('[name="site_url"]').val();
+		const auth_token = $form.find('[name="auth_token"]').val();
+
+    const mapSeries = async ($form, iterable, action) => {
+      let totalImported = 0
+      for (const data of iterable) {
+        totalImported++
+        await action(data)
+        Importer.updateProgressBar($form,totalImported,iterable.length)
+      }
+    }
+
+    try {
+      let users = {'data':null};
+      users = await Importer.importUsers(auth_token,site_url)
+      users = JSON.parse(users)
+
+      if(!users.data || !users.data.length) {
+        Importer.onDoneImporting($form, false, 'Unable to find anything to import')
+        return
+      }
+
+      $('#import-results').show();
+      $('#import-results .total').text(users.data.length);
+      
+      Importer.onDoneImporting($form, true, 'Manage to get users from remote. Now saving in database')
+      await mapSeries($form, users.data,Importer.saveimportedUsers)
+      Importer.onDoneImporting($form, true, 'Users Migrated')
+      $form.find('[type="submit"]').removeAttr('disabled');
+
+    } catch (error) {
+      console.log(error)
+      Importer.onDoneImporting($form, false, 'Error Please Try Again')
+    } 
+  },
+  importUsers: function(auth_token, site_url) {
+		return new Promise( (resolve, reject) => {
+			$.ajax({
+				url: SourceMigrator.admin_ajax,
+				data: {
+          'site_url': site_url,
+					'auth_token': auth_token,
+          'action': 'source_migrate_users'
+				},
+				type: 'POST',
+			}).done(function(res) {
+				resolve(res);
+			}).fail(function(err) {
+				reject(err);
+			});
+		});
+	},
+  saveimportedUsers: function(user) {
+		return new Promise( (resolve, reject) => {
+			$.ajax({
+				url: SourceMigrator.admin_ajax,
+				data: {
+          'action' : 'save_imported_users',
+					user,
 				},
 				type: 'POST',
 			}).done(function(res) {
