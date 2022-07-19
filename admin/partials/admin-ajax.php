@@ -284,3 +284,67 @@ function save_imported_users() {
   $response['success'] = true;
   exit(json_encode($response));
 }
+
+add_action('wp_ajax_source_migrate_coupons', 'source_migrate_coupons');
+function source_migrate_coupons() {
+  $response = array('success' => false);
+
+  if (!isset($_POST['auth_token']) || !isset($_POST['site_url'])) {
+    exit( json_encode($response) );
+  }
+
+  $curl = curl_init();
+  curl_setopt_array($curl, [
+    CURLOPT_URL => $_POST['site_url'].'/wp-json/source-migrator/export-coupons',
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_ENCODING => '',
+    CURLOPT_MAXREDIRS => 10,
+    CURLOPT_TIMEOUT => 0,
+    CURLOPT_FOLLOWLOCATION => true,
+    CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+    CURLOPT_CUSTOMREQUEST => 'POST',
+    CURLOPT_POSTFIELDS => http_build_query($_POST)
+  ]);
+
+  $response = curl_exec($curl);
+  curl_close($curl);
+  exit($response);
+}
+
+add_action('wp_ajax_save_imported_coupons', 'save_imported_coupons');
+function save_imported_coupons() {
+  $response = array('success' => false);
+  $coupon = $_POST['coupon'];
+  $meta = $_POST['meta'];
+  $site_url = $_POST['site_url'];
+
+  global $wpdb;
+  $prev_coupon = get_post($coupon['ID']);
+  $local_coupon_id = $prev_coupon->ID;
+  $post_table_name = $wpdb->prefix.'posts';
+
+  $coupon['guid'] = str_replace($site_url, get_site_url(), $coupon['guid']);
+
+  if(isset($coupon['filter'])) {
+    $coupon['post_content_filtered'] = $coupon['filter'];
+    unset($coupon['filter']);
+  }
+
+  if(!$local_coupon_id) {
+    unset($coupon['ID']);
+    $wpdb->insert($post_table_name,$coupon);
+    $local_coupon_id = $wpdb->insert_id;
+  } else {
+    unset($coupon['ID']);
+    $wpdb->update( $post_table_name, $coupon, array( 'post_name' => $coupon['post_name'] ) );
+  }
+
+  foreach ($meta as $key => $m) {
+    foreach ($m as $sm) {
+      $sm = maybe_unserialize($sm);
+      update_post_meta($local_coupon_id, $key, $m);
+    }
+  }
+  $response['success'] = true;
+  exit(json_encode($response));
+}

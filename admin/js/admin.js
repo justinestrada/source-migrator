@@ -125,10 +125,11 @@ const Importer = {
 	import_offset : 0,
 	match_taxonomies: false,
 	onLoad: function() {
-		this.onSubmit($('#import-form'));
-    this.onMigrateFeatureImageSubmit($('#import-featured-image-form'));
+		this.onSubmit($('#import-form'))
+    this.onMigrateFeatureImageSubmit($('#import-featured-image-form'))
     this.onMigrateProductReviewsSubmit($('#import-product-reviews-form'))
     this.onMigrateUsersSubmit($('#import-users-form'))
+    this.onMigrateCouponsSubmit($('#import-coupons-form'))
 	},
 	onSubmit: function($form) {
 		$form.on('submit', function(e) {
@@ -445,10 +446,10 @@ const Importer = {
     $form.on('submit', function(e) {
 			e.preventDefault();
       $form.find('[type="submit"]').prop('disabled', true);
-			Importer.onMigrateProductReviews($form);
+			Importer.onMigrateUsers($form);
 		});
   },
-  onMigrateProductReviews: async function($form) {
+  onMigrateUsers: async function($form) {
     const site_url = $form.find('[name="site_url"]').val();
 		const auth_token = $form.find('[name="auth_token"]').val();
 
@@ -508,6 +509,84 @@ const Importer = {
 				data: {
           'action' : 'save_imported_users',
 					user,
+				},
+				type: 'POST',
+			}).done(function(res) {
+				resolve(res);
+			}).fail(function(err) {
+				reject(err);
+			});
+		});
+	},
+  onMigrateCouponsSubmit: function($form) {
+    $form.on('submit', function(e) {
+			e.preventDefault();
+      $form.find('[type="submit"]').prop('disabled', true);
+			Importer.onMigrateCoupons($form);
+		});
+  },
+  onMigrateCoupons: async function($form) {
+    const site_url = $form.find('[name="site_url"]').val();
+		const auth_token = $form.find('[name="auth_token"]').val();
+
+    const mapSeries = async ($form, iterable, site_url, action) => {
+      let totalImported = 0
+      for (const data of iterable) {
+        totalImported++
+        await action(data, site_url)
+        Importer.updateProgressBar($form,totalImported,iterable.length)
+      }
+    }
+
+    try {
+      let coupons = {'data':null};
+      coupons = await Importer.importCoupons(auth_token,site_url)
+      coupons = JSON.parse(coupons)
+
+      if(!coupons.data || !coupons.data.length) {
+        Importer.onDoneImporting($form, false, 'Unable to find anything to import')
+        return
+      }
+
+      $('#import-results').show();
+      $('#import-results .total').text(coupons.data.length);
+      
+      Importer.onDoneImporting($form, true, 'Manage to get coupons from remote. Now saving in database')
+      await mapSeries($form, coupons.data, site_url, Importer.saveimportedCoupons)
+      Importer.onDoneImporting($form, true, 'Users Migrated')
+      $form.find('[type="submit"]').removeAttr('disabled');
+
+    } catch (error) {
+      console.log(error)
+      Importer.onDoneImporting($form, false, 'Error Please Try Again. Please make sure you have correct auth token')
+    } 
+  },
+  importCoupons: function(auth_token, site_url) {
+		return new Promise( (resolve, reject) => {
+			$.ajax({
+				url: SourceMigrator.admin_ajax,
+				data: {
+          'site_url': site_url,
+					'auth_token': auth_token,
+          'action': 'source_migrate_coupons'
+				},
+				type: 'POST',
+			}).done(function(res) {
+				resolve(res);
+			}).fail(function(err) {
+				reject(err);
+			});
+		});
+	},
+  saveimportedCoupons: function(data, site_url) {
+		return new Promise( (resolve, reject) => {
+			$.ajax({
+				url: SourceMigrator.admin_ajax,
+				data: {
+          'action' : 'save_imported_coupons',
+          'site_url': site_url,
+					'coupon': data['coupon'],
+          'meta': data['meta']
 				},
 				type: 'POST',
 			}).done(function(res) {

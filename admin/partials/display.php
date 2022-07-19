@@ -40,6 +40,9 @@ $site_url = get_site_url();
       <a href="<?php echo $site_url; ?>/wp-admin/tools.php?page=source-migrator&amp;tab=migrate-users" class="nav-tab <?php echo ($active_tab === 'migrate-users') ? 'nav-tab-active' : ''; ?>">
         <h2>Migrate Users</h2>
       </a>
+      <a href="<?php echo $site_url; ?>/wp-admin/tools.php?page=source-migrator&amp;tab=migrate-coupons" class="nav-tab <?php echo ($active_tab === 'migrate-coupons') ? 'nav-tab-active' : ''; ?>">
+        <h2>Migrate Coupons</h2>
+      </a>
   </div>
   <?php if ($active_tab === 'connection') {
     require_once( plugin_dir_path( __FILE__ ) . '/connection.php' );
@@ -53,5 +56,7 @@ $site_url = get_site_url();
     require_once( plugin_dir_path( __FILE__ ) . '/migrate-product-reviews.php' );
   } else if($active_tab === 'migrate-users') {
     require_once( plugin_dir_path( __FILE__ ) . '/migrate-users.php' );
+  } else if($active_tab === 'migrate-coupons') {
+    require_once( plugin_dir_path( __FILE__ ) . '/migrate-coupons.php' );
   } ?>
 </div>
